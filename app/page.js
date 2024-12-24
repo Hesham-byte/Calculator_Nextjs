@@ -1,101 +1,146 @@
-import Image from "next/image";
+'use client';
+
+import {useState} from 'react';
+
+const COMMON_BUTTON_STYLES = 'bg-gray-300 hover:bg-gray-400';
+const FUNCTION_BUTTON_STYLES = 'bg-gray-200 hover:bg-gray-300';
+const OPERATION_BUTTON_STYLES = 'bg-orange-500 text-white hover:bg-orange-600';
+const ZERO_BUTTON_STYLES = 'col-span-2 bg-gray-300 hover:bg-gray-400';
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.js
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [currentValue, setCurrentValue] = useState("0");
+  const [previousValue, setPreviousValue] = useState(null);
+  const [operator, setOperator] = useState(null);
+  const [waitingForNextValue, setWaitingForNextValue] = useState(false);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const calculatorKeys = [
+    ["C", "±", "%", "÷"],
+    ["7", "8", "9", "×"],
+    ["4", "5", "6", "−"],
+    ["1", "2", "3", "+"],
+    ["0", ".", "="],
+  ];
+
+  const getButtonClass = (label) => {
+    if (["C", "±", "%"].includes(label)) return FUNCTION_BUTTON_STYLES;
+    if (["÷", "×", "−", "+", "="].includes(label)) return OPERATION_BUTTON_STYLES;
+    if (label === "0") return ZERO_BUTTON_STYLES;
+    return COMMON_BUTTON_STYLES;
+  };
+
+  const handleButtonClick = (label) => {
+    if (["÷", "×", "−", "+"].includes(label)) {
+      handleOperator(label);
+    } else if (label === "=") {
+      handleEquals();
+    } else if (label === "C") {
+      clearCalculator();
+    } else if (label === "±") {
+      toggleSign();
+    } else if (label === "%") {
+      handlePercentage();
+    } else {
+      handleNumberInput(label);
+    }
+  };
+
+  const handleNumberInput = (input) => {
+    if (waitingForNextValue) {
+      setCurrentValue(input);
+      setWaitingForNextValue(false);
+    } else {
+      setCurrentValue((prev) => (prev === "0" ? input : prev + input));
+    }
+  };
+
+  const handleOperator = (nextOperator) => {
+    if (operator && waitingForNextValue) {
+      setOperator(nextOperator);
+      return;
+    }
+    if (previousValue === null) {
+      setPreviousValue(currentValue);
+    } else if (operator) {
+      const result = calculate(previousValue, currentValue, operator);
+      setPreviousValue(result.toString());
+      setCurrentValue(result.toString());
+    }
+    setOperator(nextOperator);
+    setWaitingForNextValue(true);
+  };
+
+  const handleEquals = () => {
+    if (!operator || previousValue === null) return;
+    const result = calculate(previousValue, currentValue, operator);
+    setCurrentValue(result.toString());
+    setPreviousValue(null);
+    setOperator(null);
+    setWaitingForNextValue(true);
+  };
+
+  const clearCalculator = () => {
+    setCurrentValue("0");
+    setPreviousValue(null);
+    setOperator(null);
+    setWaitingForNextValue(false);
+  };
+
+  const toggleSign = () => {
+    setCurrentValue((prev) => (prev.startsWith("-") ? prev.slice(1) : "-" + prev));
+  };
+
+  const handlePercentage = () => {
+    setCurrentValue((prev) => (parseFloat(prev) / 100).toString());
+  };
+
+  const calculate = (firstValue, secondValue, operator) => {
+    const num1 = parseFloat(firstValue);
+    const num2 = parseFloat(secondValue);
+    if (operator === "÷") return num1 / num2;
+    if (operator === "×") return num1 * num2;
+    if (operator === "−") return num1 - num2;
+    if (operator === "+") return num1 + num2;
+    return secondValue;
+  };
+
+  const renderDisplay = () => (
+      <div className="text-right mb-24 mt-24 text-4xl font-semibold bg-gray-100 rounded py-3 px-4 shadow">
+        {currentValue}
+      </div>
+  );
+
+  const renderButton = (label, key) => (
+      <button
+          key={key}
+          className={`py-2 rounded-lg text-xl font-semibold shadow active:scale-95 transition-transform duration-150 outline-none focus:ring-2 focus:ring-offset-2 ${getButtonClass(label)}`}
+          onClick={() => handleButtonClick(label)}
+      >
+        {label}
+      </button>
+  );
+
+  const renderRow = (row, rowIndex) =>
+      row.map((label, colIndex) => renderButton(label, `${rowIndex}-${colIndex}`));
+
+  const renderButtons = () => (
+      <div className="grid grid-cols-4 gap-3 flex-grow">
+        {calculatorKeys.map(renderRow)}
+      </div>
+  );
+
+  return (
+      <div className="flex justify-center items-center min-h-screen bg-gradient-to-r from-blue-400 to-purple-600">
+        <div className="mockup-phone shadow-2xl">
+          <div className="camera bg-gray-700"></div>
+          <div className="display bg-black">
+            <div className="artboard artboard-demo phone-4">
+              <div className="rounded-lg shadow-lg w-full h-full flex flex-col justify-between p-5">
+                {renderDisplay()}
+                {renderButtons()}
+              </div>
+            </div>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+      </div>
   );
 }
